@@ -2,23 +2,10 @@ import cv2
 import numpy as np
 import face_recognition
 import os
-import webbrowser
-#import mysql.connector
 from datetime import datetime
-import webbrowser
-#from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-"""
-env = Environment(
-    loader=FileSystemLoader("templates"),
-    autoescape=select_autoescape()
-)
-template = env.get_template("Secondpage.html")
-print(template.render(thing='Hi there'))
-webbrowser.open_new('Secondpage.html')
-"""
-
-path = 'Images'
+# ---------------------- Load Known Faces ---------------------- #
+path = 'Images'   # Folder containing student images
 images = []
 classNames = []
 List1 = os.listdir(path)
@@ -32,48 +19,37 @@ def findEncodings(images):
     encodeList = []
     for img in images:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        encode = face_recognition.face_encodings(img)[0]
-        encodeList.append(encode)
+        encodes = face_recognition.face_encodings(img)
+        if len(encodes) > 0:   # avoid error if no face is found
+            encodeList.append(encodes[0])
     return encodeList
 
-"""
-def mysqlconnection():
-    connect = mysql.connector.connect(host='localhost', database='records', user='root', password='root')
-    cursor = connect.cursor()
-    cursor.execute("select * from year2")
-    result = cursor.fetchall()
-    for x in result:
-        print(x)
-"""
-
-def markAttendance(name):
-    with open('attend1.csv','w+') as k:
-        myDataList = k.readlines()
-        nameList = []
-        for line in myDataList:
-            entry = line.split(',')
-            nameList.append(entry[0])
-        if name not in nameList:
-            now = datetime.now()
-            dtString = now.strftime('%H:%M:%S:%D')
-            k.writelines(f'\n{name},{dtString}')
-        if True:
-            cv2.destroyAllWindows()
-            webbrowser.open_new_tab('attendence.html')
-            exit()
-
 encodeListKnown = findEncodings(images)
-print('Encoding Complete')
+print("✅ Encoding Complete")
 
+# ---------------------- Attendance Function ---------------------- #
+def markAttendance(name):
+    with open('attend1.csv', 'a+') as f:   # append mode
+        f.seek(0)
+        myDataList = f.readlines()
+        nameList = [line.split(',')[0] for line in myDataList]
+
+        if name not in nameList:   # avoid duplicates
+            now = datetime.now()
+            dtString = now.strftime('%Y-%m-%d %H:%M:%S')
+            f.writelines(f'\n{name},{dtString}')
+            print(f"✅ Attendance marked for {name}")
+
+# ---------------------- Webcam Setup ---------------------- #
 cap = cv2.VideoCapture(0)
 
 while True:
     success, img = cap.read()
-    imgS = cv2.resize(img,(0,0),None,0.25,0.25)
+    imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)  # resize for speed
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 
     facesCurFrame = face_recognition.face_locations(imgS)
-    encodesCurFrame = face_recognition.face_encodings(imgS,facesCurFrame)
+    encodesCurFrame = face_recognition.face_encodings(imgS, facesCurFrame)
 
     for encodeFace, faceLoc in zip(encodesCurFrame, facesCurFrame):
         matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
@@ -83,13 +59,19 @@ while True:
         if matches[matchIndex]:
             name = classNames[matchIndex].upper()
             y1, x2, y2, x1 = faceLoc
-            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
+            y1, x2, y2, x1 = y1*4, x2*4, y2*4, x1*4  # scale back to full size
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.rectangle(img, (x1, y2 - 35), (x2, y2), (0, 255, 0), cv2.FILLED)
-            cv2.putText(img, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-            markAttendance(name)
+            cv2.putText(img, name, (x1+6, y2-6),
+                        cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
-
+            markAttendance(name)  # mark each student
 
     cv2.imshow('Webcam', img)
-    cv2.waitKey(1)
+
+    # Press 'q' to quit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
