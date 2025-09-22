@@ -4,8 +4,7 @@ import face_recognition
 import os
 from datetime import datetime
 
-# ---------------------- Load Known Faces ---------------------- #
-path = 'Images'   # Folder containing student images
+path = 'Images'   
 images = []
 classNames = []
 List1 = os.listdir(path)
@@ -20,32 +19,32 @@ def findEncodings(images):
     for img in images:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         encodes = face_recognition.face_encodings(img)
-        if len(encodes) > 0:   # avoid crash if no face found
+        if len(encodes) > 0:  
             encodeList.append(encodes[0])
     return encodeList
 
 encodeListKnown = findEncodings(images)
 print("✅ Encoding Complete")
 
-# ---------------------- Attendance Function ---------------------- #
+
 def markAttendance(name):
-    with open('attend1.csv', 'a+') as f:   # append mode
+    with open('attend1.csv', 'a+') as f:  
         f.seek(0)
         myDataList = f.readlines()
         nameList = [line.split(',')[0] for line in myDataList]
 
-        if name not in nameList:   # avoid duplicate attendance
+        if name not in nameList:  
             now = datetime.now()
             dtString = now.strftime('%Y-%m-%d %H:%M:%S')
             f.writelines(f'\n{name},{dtString}')
             print(f"✅ Attendance marked for {name}")
 
-# ---------------------- Webcam Setup ---------------------- #
+
 cap = cv2.VideoCapture(0)
 
 while True:
     success, img = cap.read()
-    imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)  # resize for speed
+    imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)  
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 
     facesCurFrame = face_recognition.face_locations(imgS)
@@ -59,19 +58,20 @@ while True:
         if matches[matchIndex]:
             name = classNames[matchIndex].upper()
             y1, x2, y2, x1 = faceLoc
-            y1, x2, y2, x1 = y1*4, x2*4, y2*4, x1*4  # scale back
+            y1, x2, y2, x1 = y1*4, x2*4, y2*4, x1*4 
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.rectangle(img, (x1, y2 - 35), (x2, y2), (0, 255, 0), cv2.FILLED)
             cv2.putText(img, name, (x1+6, y2-6),
                         cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
 
-            markAttendance(name)  # record attendance
+            markAttendance(name) 
 
     cv2.imshow('Webcam', img)
 
-    # Quit when 'q' is pressed
+   
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
 cv2.destroyAllWindows()
+
